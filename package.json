@@ -1,0 +1,21 @@
+{
+	"name": "trick-or-treat",
+	"version": "1.0.0",
+	"main": "./out/index.js",
+	"license": "MIT",
+	"dependencies": {
+		"discord-api-types": "^0.37.11",
+		"undici": "^5.11.0",
+		"ws": "^8.9.0"
+	},
+	"devDependencies": {
+		"@types/node": "^18.8.2",
+		"@types/ws": "^8.5.3",
+		"prettier": "^2.7.1",
+		"ts-node": "^10.9.1",
+		"typescript": "^4.8.4"
+	},
+	"scripts": {
+		"dev": "ts-node src/index.ts"
+	}
+}
