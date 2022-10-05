@@ -1,7 +1,17 @@
 import { RawData, WebSocket } from 'ws';
-import { GatewayDispatchEvents, GatewayOpcodes, GatewayReceivePayload } from 'discord-api-types/v10';
-import { BaseHandler } from './handlers';
+import { GatewayDispatchEvents, GatewayDispatchPayload, GatewayOpcodes, GatewayReceivePayload } from 'discord-api-types/v10';
+import { PacketHandlers } from './handlers';
 import { Client } from './Client';
+
+const BeforeReadyWhitelist = [
+	GatewayDispatchEvents.Ready,
+	GatewayDispatchEvents.Resumed,
+	GatewayDispatchEvents.GuildCreate,
+	GatewayDispatchEvents.GuildDelete,
+	GatewayDispatchEvents.GuildMembersChunk,
+	GatewayDispatchEvents.GuildMemberAdd,
+	GatewayDispatchEvents.GuildMemberRemove,
+];
 
 export class Shard {
 	#gateway: WebSocket = null!;
@@ -11,6 +21,7 @@ export class Shard {
 	#lastHeartbeat: number | null = null;
 	#lastAck: number | null = null;
 	#readyAt: number | null = null;
+	#packetQueue: Array<any> = [];
 	constructor(client: Client) {
 		Object.defineProperty(this, 'client', {
 			value: client,
@@ -68,9 +79,11 @@ export class Shard {
 					case GatewayDispatchEvents.Ready: {
 						this.#session_id = data.d.session_id;
 						this.#readyAt = Date.now();
-						new BaseHandler(this.client).handle(data);
+						this.client.emit('ready', data.d);
+						break;
 					}
 				}
+				this.#handlePacket(data);
 				break;
 			}
 			case GatewayOpcodes.Hello: {
@@ -98,6 +111,26 @@ export class Shard {
 			}
 			case GatewayOpcodes.Reconnect: {
 			}
+		}
+	}
+
+	#handlePacket(packet: GatewayDispatchPayload) {
+		if (packet) {
+			if (!BeforeReadyWhitelist.includes(packet.t)) {
+				this.#packetQueue.push({ packet });
+				return false;
+			}
+		}
+
+		if (this.#packetQueue.length) {
+			const item: { packet: GatewayDispatchPayload } = this.#packetQueue.shift();
+			setImmediate(() => {
+				this.#handlePacket(item.packet);
+			}).unref();
+		}
+
+		if (packet && PacketHandlers[packet.t]) {
+			PacketHandlers[packet.t](this.client, packet);
 		}
 	}
 }

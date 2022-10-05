@@ -5,5 +5,6 @@ const client = new Client(TOKEN);
 
 client.on('READY', console.log);
 client.on('debug', console.log);
+client.on('messageCreate', console.log);
 
 client.connect();
